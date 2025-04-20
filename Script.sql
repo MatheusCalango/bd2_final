@@ -1,3 +1,7 @@
+﻿-- Banco 
+CREATE DATABASE red_dead_redemption2;
+USE red_dead_redemption2;
+
 -- Tabela: Personagens
 CREATE TABLE personagens (
 SELECT * FROM personagens;
@@ -6,7 +10,8 @@ SELECT * FROM missoes;
 SELECT * FROM animais;
 SELECT * FROM locais;
 
-sp_missoes_por_personagem - Lista todas as missões de um personagem específico
+--Stored Procedures
+--sp_missoes_por_personagem - Lista todas as missões de um personagem específico
 
 DELIMITER //
 CREATE PROCEDURE sp_missoes_por_personagem(IN personagem_id INT)
@@ -16,7 +21,7 @@ BEGIN
     WHERE m.id_personagem_responsavel = personagem_id;
 END //
 DELIMITER ; 
-sp_armas_por_tipo - Lista armas de um tipo específico com filtro de dano mínimo
+--sp_armas_por_tipo - Lista armas de um tipo específico com filtro de dano mínimo
 
 DELIMITER //
 CREATE PROCEDURE sp_armas_por_tipo(IN tipo_arma VARCHAR(50), IN dano_minimo INT)
@@ -27,7 +32,8 @@ BEGIN
     WHERE a.tipo = tipo_arma AND a.dano >= dano_minimo;
 END //
 DELIMITER ; 
-sp_atualizar_status_personagem - Atualiza o status de um personagem
+
+--sp_atualizar_status_personagem - Atualiza o status de um personagem
 
 DELIMITER //
 CREATE PROCEDURE sp_atualizar_status_personagem(IN personagem_id INT, IN novo_status VARCHAR(20))
@@ -37,7 +43,8 @@ BEGIN
     WHERE id_personagem = personagem_id;
 END //
 DELIMITER ;
-sp_animais_perigosos - Lista animais perigosos com possibilidade de filtro por tipo
+
+--sp_animais_perigosos - Lista animais perigosos com possibilidade de filtro por tipo
 
 DELIMITER //
 CREATE PROCEDURE sp_animais_perigosos(IN tipo_animal VARCHAR(50))
@@ -55,9 +62,7 @@ BEGIN
     END IF;
 END //
 DELIMITER ;
-﻿
-CREATE DATABASE red_dead_redemption2;
-USE red_dead_redemption2;
+
 
 
 -- Tabela: Personagens
@@ -108,7 +113,7 @@ CREATE TABLE animais (
     perigo VARCHAR(20), -- baixa, média, alta
     pode_domesticar BOOLEAN
 );
-
+--INSERTS
 
 INSERT INTO personagens (nome, idade, papel_no_jogo, status) VALUES
 ('Arthur Morgan', 36, 'Protagonista', 'morto'),
