@@ -209,7 +209,7 @@ INSERT INTO locais (nome, tipo_local, descricao, estado) VALUES
 
 
 INSERT INTO animais (nome_comum, tipo, perigo, pode_domesticar) VALUES
-('Cervo', 'Selvagem', 'baixa', FALSE),
+('Cervoo', 'Selvagem', 'baixa', FALSE),
 ('Urso Pardo', 'Selvagem', 'alta', FALSE),
 ('Cavalo Árabe', 'Domesticado', 'baixa', TRUE),
 ('Puma', 'Selvagem', 'alta', FALSE),
