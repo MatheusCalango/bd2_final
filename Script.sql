@@ -350,3 +350,225 @@ GRANT SELECT, INSERT, UPDATE, EXECUTE ON *.* TO 'role_analista';
 GRANT 'role_admin' TO 'matheus'@'%';
 GRANT 'role_analista' TO 'ana'@'%';
 
+-- Stores Procedures
+-- Lista todas as missões de um personagem específico
+DELIMITER 
+CREATE PROCEDURE sp_missoes_por_personagem(IN personagem_id INT)
+BEGIN
+    SELECT m.titulo, m.descricao, m.recompensa, m.localizacao
+    FROM missoes m
+    WHERE m.id_personagem_responsavel = personagem_id;
+END 
+DELIMITER ;
+
+-- Lista armas de um tipo específico com filtro de dano mínimo
+DELIMITER //
+CREATE PROCEDURE sp_armas_por_tipo(IN tipo_arma VARCHAR(50), IN dano_minimo INT)
+BEGIN
+    SELECT a.nome_arma, a.dano, a.alcance, p.nome AS dono
+    FROM armas a
+    JOIN personagens p ON a.id_personagem_dono = p.id_personagem
+    WHERE a.tipo = tipo_arma AND a.dano >= dano_minimo;
+END //
+DELIMITER ;
+
+-- Lista animais perigosos com possibilidade de filtro por tipo
+DELIMITER //
+CREATE PROCEDURE sp_atualizar_status_personagem(IN personagem_id INT, IN novo_status VARCHAR(20))
+BEGIN
+    UPDATE personagens 
+    SET status = novo_status 
+    WHERE id_personagem = personagem_id;
+END //
+DELIMITER ;
+
+-- Lista de animais perigosos
+DELIMITER //
+CREATE PROCEDURE sp_animais_perigosos(IN tipo_animal VARCHAR(50))
+BEGIN
+    IF tipo_animal IS NULL THEN
+        SELECT nome_comum, tipo, perigo
+        FROM animais
+        WHERE perigo IN ('alta', 'média')
+        ORDER BY perigo DESC;
+    ELSE
+        SELECT nome_comum, tipo, perigo
+        FROM animais
+        WHERE perigo IN ('alta', 'média') AND tipo = tipo_animal
+        ORDER BY perigo DESC;
+    END IF;
+END //
+DELIMITER ;
+
+-- Chamada das procedures
+CALL sp_missoes_por_personagem(1);
+CALL sp_armas_por_tipo('Revólver', 50);
+CALL sp_atualizar_status_personagem(3, 'morto');
+CALL sp_animais_perigosos(NULL);
+
+-- Functions
+CREATE FUNCTION verificar_se_missao_foi_concluida(id_personagem INT, id_missao INT)
+RETURNS BOOLEAN
+BEGIN
+    DECLARE resultado INT;
+
+    SELECT COUNT(*) INTO resultado
+    FROM missoes
+    WHERE id_personagem_responsavel = id_personagem
+    AND id_missao = id_missao
+    AND recompensa IS NOT NULL;  
+    
+    IF resultado > 0 THEN
+        RETURN TRUE;
+    ELSE
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Missão não foi concluída';
+    END IF;
+END $$
+
+
+DELIMITER $$
+CREATE FUNCTION calcular_missoes_concluidas(id_personagem INT)
+RETURNS INT
+BEGIN
+    DECLARE num_missoes INT;
+    
+    SELECT COUNT(*) INTO num_missoes 
+    FROM missoes 
+    WHERE id_personagem_responsavel = id_personagem 
+    AND recompensa IS NOT NULL;  
+    
+    RETURN num_missoes;
+END $$
+DELIMITER ;
+
+-- Trigger 
+
+-- Trigger para evitar que um personagem seja excluído se estiver associado a missões
+DELIMITER
+CREATE TRIGGER impedir_missao_personagem_morto
+BEFORE INSERT ON missoes
+FOR EACH ROW
+BEGIN
+    DECLARE status_personagem VARCHAR(20);
+    SELECT status INTO status_personagem
+    FROM personagens
+    WHERE id_personagem = NEW.id_personagem_responsavel;
+
+    IF status_personagem = 'morto' THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Não é possível atribuir missão a um personagem morto.';
+    END IF;
+END;
+DELIMITER ;
+
+--Trigger para garantir que a recompensa de uma missão não seja nula
+DELIMITER $$
+CREATE TRIGGER check_recompensa_missao
+BEFORE INSERT ON missoes
+FOR EACH ROW
+BEGIN
+    IF NEW.recompensa IS NULL THEN
+        SIGNAL SQLSTATE '45000' 
+        SET MESSAGE_TEXT = 'Recompensa da missão não pode ser nula.';
+    END IF;
+END $$
+DELIMITER ;
+
+--Trigger para evitar que o valor do dano de uma arma seja negativo
+DELIMITER $$
+CREATE TRIGGER check_arma_dano_negativo
+BEFORE INSERT ON armas
+FOR EACH ROW
+BEGIN
+
+    IF NEW.dano < 0 THEN
+        SIGNAL SQLSTATE '45000' 
+    SET MESSAGE_TEXT = 'O valor de dano não pode ser negativo.';
+    END IF;
+END $$
+DELIMITER ;
+
+
+--Trigger para deletar armas automaticamente quando um personagem for deletado
+DELIMITER 
+CREATE TRIGGER deletar_armas_personagem
+AFTER DELETE ON personagens
+FOR EACH ROW
+BEGIN
+    DELETE FROM armas WHERE id_personagem_dono = OLD.id_personagem;
+END;
+DELIMITER ;
+
+--Trigger mpedir inserção de animal domesticado com nível de perigo "alta"
+DELIMITER //
+CREATE TRIGGER valida_domesticacao_animal
+BEFORE INSERT ON animais
+FOR EACH ROW
+BEGIN
+    IF NEW.pode_domesticar = TRUE AND NEW.perigo = 'alta' THEN
+        SET NEW.nome_comum = NULL;
+        SET NEW.tipo = NULL;
+        SET NEW.perigo = NULL;
+        SET NEW.pode_domesticar = NULL;
+    END IF;
+END;
+//
+DELIMITER ;
+
+-- triggers implementadas foi para atualizar o status de um  personagem após a missão
+ DELIMITER //
+ CREATE TRIGGER atualizar_status_personagem
+ AFTER UPDATE ON missoes
+ FOR EACH ROW
+ BEGIN
+     IF NEW.status = ’completa’ THEN
+         UPDATE personagens
+         SET status = ’vivo’
+         WHERE id_personagem = NEW.id_personagem_responsavel;
+     END IF;
+ END //
+ DELIMITER ;
+
+ -- View
+--View para listar os personagens com suas missões concluídas
+CREATE VIEW personagens_missoes_concluidas AS
+SELECT 
+    p.nome AS personagem_nome,
+    p.idade,
+    m.titulo AS missao_titulo,
+    m.recompensa,
+    m.localizacao
+FROM 
+    personagens p
+JOIN 
+    missoes m ON p.id_personagem = m.id_personagem_responsavel
+WHERE 
+    m.recompensa IS NOT NULL;
+
+-- View que mostra missões com o nome do personagem responsável e a recompensa.
+CREATE VIEW view_missoes_detalhadas AS
+SELECT 
+    m.titulo,
+    m.descricao,
+    m.recompensa,
+    m.localizacao,
+    p.nome AS responsavel
+FROM missoes m
+JOIN personagens p ON m.id_personagem_responsavel = p.id_personagem;
+
+--View que mostra apenas animais que podem ser domesticados.
+CREATE VIEW view_animais_domesticaveis AS
+SELECT 
+    nome_comum,
+    tipo,
+    perigo
+FROM animais
+WHERE pode_domesticar = TRUE;
+
+--View consulta das missões de cada personagem
+CREATE VIEW missoes_por_personagem AS
+ SELECT m.titulo, m.descricao, m.recompensa, p.nome
+ FROM missoes m
+ JOIN personagens p ON m.id_personagem_responsavel = p.
+ id_personagem;
