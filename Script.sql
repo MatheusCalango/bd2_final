@@ -338,3 +338,15 @@ INSERT INTO animais (nome_comum, tipo, perigo, pode_domesticar) VALUES
 remove from animais where perigo like "alta";
 update locais set nome = "Strawberry Hills" where nome like "Strawberry";
 select * from missoes where descricao like "Ataque um esconderijo inimigo.";
+
+-- Roles -- 
+CREATE ROLE 'role_admin';
+GRANT ALL PRIVILEGES ON *.* TO 'role_admin';
+
+CREATE ROLE 'role_analista';
+GRANT SELECT, INSERT, UPDATE, EXECUTE ON *.* TO 'role_analista';
+
+-- Usuários -- 
+GRANT 'role_admin' TO 'matheus'@'%';
+GRANT 'role_analista' TO 'ana'@'%';
+
