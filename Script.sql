@@ -10,162 +10,13 @@ SELECT * FROM missoes;
 SELECT * FROM animais;
 SELECT * FROM locais;
 
---Stored Procedures
-
---sp_armas_por_tipo - Lista armas de um tipo específico com filtro de dano mínimo
-
-DELIMITER //
-CREATE PROCEDURE sp_armas_por_tipo(IN tipo_arma VARCHAR(50), IN dano_minimo INT)
-BEGIN
-    SELECT a.nome_arma, a.dano, a.alcance, p.nome AS dono
-    FROM armas a
-    JOIN personagens p ON a.id_personagem_dono = p.id_personagem
-    WHERE a.tipo = tipo_arma AND a.dano >= dano_minimo;
-END //
-DELIMITER ; 
-
---sp_atualizar_status_personagem - Atualiza o status de um personagem
-
-DELIMITER //
-CREATE PROCEDURE sp_atualizar_status_personagem(IN personagem_id INT, IN novo_status VARCHAR(20))
-BEGIN
-    UPDATE personagens 
-    SET status = novo_status 
-    WHERE id_personagem = personagem_id;
-END //
-DELIMITER ;
-
---sp_animais_perigosos - Lista animais perigosos com possibilidade de filtro por tipo
-
-DELIMITER //
-CREATE PROCEDURE sp_animais_perigosos(IN tipo_animal VARCHAR(50))
-BEGIN
-    IF tipo_animal IS NULL THEN
-        SELECT nome_comum, tipo, perigo
-        FROM animais
-        WHERE perigo IN ('alta', 'média')
-        ORDER BY perigo DESC;
-    ELSE
-        SELECT nome_comum, tipo, perigo
-        FROM animais
-        WHERE perigo IN ('alta', 'média') AND tipo = tipo_animal
-        ORDER BY perigo DESC;
-    END IF;
-END //
-DELIMITER ;
-
--- Triggers --
--- Trigger 1: Impedir inserção de personagem com status inválido
-DELIMITER //
-CREATE TRIGGER trg_validar_status_personagem
-BEFORE INSERT ON personagens
-FOR EACH ROW
-BEGIN
-    IF NEW.status NOT IN ('vivo', 'morto', 'desaparecido', 'expulso') THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Status inválido para personagem.';
-    END IF;
-END //
-DELIMITER ;
-
--- Trigger 2: Atualizar status de personagem para 'morto' ao remover todas suas armas
-DELIMITER //
-CREATE TRIGGER trg_personagem_sem_armas
-AFTER DELETE ON armas
-FOR EACH ROW
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM armas WHERE id_personagem_dono = OLD.id_personagem_dono) THEN
-        UPDATE personagens
-        SET status = 'morto'
-        WHERE id_personagem = OLD.id_personagem_dono;
-    END IF;
-END //
-DELIMITER ;
-
--- Trigger 3: Impedir que animal perigoso seja domesticável
-DELIMITER //
-CREATE TRIGGER trg_animal_perigoso_domesticavel
-BEFORE INSERT ON animais
-FOR EACH ROW
-BEGIN
-    IF NEW.perigo IN ('alta', 'média') AND NEW.pode_domesticar = TRUE THEN
-        SIGNAL SQLSTATE '45000'
-        SET MESSAGE_TEXT = 'Animais perigosos não podem ser domesticáveis.';
-    END IF;
-END //
-DELIMITER ;
-
--- Trigger 4: Log de missões criadas
-CREATE TABLE log_missoes (
-    id_log INT AUTO_INCREMENT PRIMARY KEY,
-    titulo VARCHAR(100),
-    data_criacao DATETIME
-);
-
-DELIMITER //
-CREATE TRIGGER trg_log_missao_nova
-AFTER INSERT ON missoes
-FOR EACH ROW
-BEGIN
-    INSERT INTO log_missoes (titulo, data_criacao)
-    VALUES (NEW.titulo, NOW());
-END //
-DELIMITER ;
-
--- Trigger 5: Atualizar automaticamente o status de personagem para 'desaparecido' se missão atribuída for excluída
-DELIMITER //
-CREATE TRIGGER trg_personagem_missao_removida
-AFTER DELETE ON missoes
-FOR EACH ROW
-BEGIN
-    UPDATE personagens
-    SET status = 'desaparecido'
-    WHERE id_personagem = OLD.id_personagem_responsavel;
-END //
-DELIMITER ;
-
--- Views -- 
--- Mostra um resumo das missões com o nome do personagem responsável. --
-CREATE VIEW vw_resumo_missoes AS
-SELECT 
-    m.titulo AS titulo_missao,
-    m.recompensa,
-    m.localizacao,
-    p.nome AS personagem_responsavel
-FROM missoes m
-JOIN personagens p ON m.id_personagem_responsavel = p.id_personagem;
-
- -- Lista todas as armas junto com os dados do personagem que a possui. --
-CREATE VIEW vw_armas_personagens AS
-SELECT 
-    a.nome_arma,
-    a.tipo,
-    a.dano,
-    a.alcance,
-    p.nome AS dono,
-    p.status
-FROM armas a
-JOIN personagens p ON a.id_personagem_dono = p.id_personagem;
-
--- Mostra apenas os animais com perigo médio ou alto. --
-CREATE VIEW vw_animais_perigosos AS
-SELECT 
-    nome_comum,
-    tipo,
-    perigo,
-    pode_domesticar
-FROM animais
-WHERE perigo IN ('alta', 'média')
-ORDER BY perigo DESC;
-
-
 -- Tabela: Personagens
-CREATE TABLE personagens (
+CREATE TABLE personagens 
     id_personagem INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     idade INT,
-    papel_no_jogo VARCHAR(50), -- protagonista, antagonista, etc.
-    status VARCHAR(20) -- vivo, morto, desaparecido
+    papel_no_jogo VARCHAR(50), 
+    status VARCHAR(20)
 );
 
 -- Tabela: Missões
@@ -183,7 +34,7 @@ CREATE TABLE missoes (
 CREATE TABLE armas (
     id_arma INT AUTO_INCREMENT PRIMARY KEY,
     nome_arma VARCHAR(100) NOT NULL,
-    tipo VARCHAR(50), -- revolver, rifle, faca etc.
+    tipo VARCHAR(50), 
     dano INT,
     alcance INT,
     id_personagem_dono INT,
@@ -194,21 +45,21 @@ CREATE TABLE armas (
 CREATE TABLE locais (
     id_local INT AUTO_INCREMENT PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
-    tipo_local VARCHAR(50), -- cidade, floresta, rancho etc.
+    tipo_local VARCHAR(50),
     descricao TEXT,
-    estado VARCHAR(50) -- exemplo: New Hanover
+    estado VARCHAR(50) 
 );
 
 -- Tabela: Animais
 CREATE TABLE animais (
     id_animal INT AUTO_INCREMENT PRIMARY KEY,
     nome_comum VARCHAR(100),
-    tipo VARCHAR(50), -- selvagem, domesticado
-    perigo VARCHAR(20), -- baixa, média, alta
+    tipo VARCHAR(50), 
+    perigo VARCHAR(20), 
     pode_domesticar BOOLEAN
 );
---INSERTS
 
+--INSERTS
 INSERT INTO personagens (nome, idade, papel_no_jogo, status) VALUES
 ('Arthur Morgan', 36, 'Protagonista', 'morto'),
 ('Dutch van der Linde', 45, 'Antagonista', 'desaparecido'),
@@ -434,6 +285,29 @@ END $$
 DELIMITER ;
 
 -- Trigger 
+-- Trigger para atualizar automaticamente o status de personagem para 'desaparecido' se missão atribuída for excluída
+DELIMITER //
+CREATE TRIGGER trg_personagem_missao_removida
+AFTER DELETE ON missoes
+FOR EACH ROW
+BEGIN
+    UPDATE personagens
+    SET status = 'desaparecido'
+    WHERE id_personagem = OLD.id_personagem_responsavel;
+END //
+DELIMITER ;
+-- Trigger para impedir inserção de personagem com status inválido
+DELIMITER //
+CREATE TRIGGER trg_validar_status_personagem
+BEFORE INSERT ON personagens
+FOR EACH ROW
+BEGIN
+    IF NEW.status NOT IN ('vivo', 'morto', 'desaparecido', 'expulso') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Status inválido para personagem.';
+    END IF;
+END //
+DELIMITER ;
 
 -- Trigger para evitar que um personagem seja excluído se estiver associado a missões
 DELIMITER
@@ -480,6 +354,15 @@ BEGIN
 END $$
 DELIMITER ;
 
+DELIMITER //
+CREATE TRIGGER trg_log_missao_nova
+AFTER INSERT ON missoes
+FOR EACH ROW
+BEGIN
+    INSERT INTO log_missoes (titulo, data_criacao)
+    VALUES (NEW.titulo, NOW());
+END //
+DELIMITER ;
 
 --Trigger para deletar armas automaticamente quando um personagem for deletado
 DELIMITER 
@@ -507,6 +390,39 @@ END;
 //
 DELIMITER ;
 
+-- Trigger atualizar status de personagem para 'morto' ao remover todas suas armas
+DELIMITER //
+CREATE TRIGGER trg_personagem_sem_armas
+AFTER DELETE ON armas
+FOR EACH ROW
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM armas WHERE id_personagem_dono = OLD.id_personagem_dono) THEN
+        UPDATE personagens
+        SET status = 'morto'
+        WHERE id_personagem = OLD.id_personagem_dono;
+    END IF;
+END //
+DELIMITER ;
+
+-- Trigger 3: Impedir que animal perigoso seja domesticável
+DELIMITER //
+CREATE TRIGGER trg_animal_perigoso_domesticavel
+BEFORE INSERT ON animais
+FOR EACH ROW
+BEGIN
+    IF NEW.perigo IN ('alta', 'média') AND NEW.pode_domesticar = TRUE THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Animais perigosos não podem ser domesticáveis.';
+    END IF;
+END //
+DELIMITER ;
+
+-- Trigger log de missões criadas
+CREATE TABLE log_missoes (
+    id_log INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(100),
+    data_criacao DATETIME
+);
 -- triggers implementadas foi para atualizar o status de um  personagem após a missão
  DELIMITER //
  CREATE TRIGGER atualizar_status_personagem
@@ -521,7 +437,17 @@ DELIMITER ;
  END //
  DELIMITER ;
 
- -- View
+-- View
+-- Mostra apenas os animais com perigo médio ou alto. --
+CREATE VIEW vw_animais_perigosos AS
+SELECT 
+    nome_comum,
+    tipo,
+    perigo,
+    pode_domesticar
+FROM animais
+WHERE perigo IN ('alta', 'média')
+ORDER BY perigo DESC;
 --View para listar os personagens com suas missões concluídas
 CREATE VIEW personagens_missoes_concluidas AS
 SELECT 
@@ -557,9 +483,31 @@ SELECT
 FROM animais
 WHERE pode_domesticar = TRUE;
 
+ -- Lista todas as armas junto com os dados do personagem que a possui. --
+CREATE VIEW vw_armas_personagens AS
+SELECT 
+    a.nome_arma,
+    a.tipo,
+    a.dano,
+    a.alcance,
+    p.nome AS dono,
+    p.status
+FROM armas a
+JOIN personagens p ON a.id_personagem_dono = p.id_personagem;
+
 --View consulta das missões de cada personagem
 CREATE VIEW missoes_por_personagem AS
  SELECT m.titulo, m.descricao, m.recompensa, p.nome
  FROM missoes m
  JOIN personagens p ON m.id_personagem_responsavel = p.
  id_personagem;
+
+-- Mostra um resumo das missões com o nome do personagem responsável. --
+CREATE VIEW vw_resumo_missoes AS
+SELECT 
+    m.titulo AS titulo_missao,
+    m.recompensa,
+    m.localizacao,
+    p.nome AS personagem_responsavel
+FROM missoes m
+JOIN personagens p ON m.id_personagem_responsavel = p.id_personagem;
