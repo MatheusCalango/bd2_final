@@ -11,16 +11,7 @@ SELECT * FROM animais;
 SELECT * FROM locais;
 
 --Stored Procedures
---sp_missoes_por_personagem - Lista todas as missões de um personagem específico
 
-DELIMITER //
-CREATE PROCEDURE sp_missoes_por_personagem(IN personagem_id INT)
-BEGIN
-    SELECT m.titulo, m.descricao, m.recompensa, m.localizacao
-    FROM missoes m
-    WHERE m.id_personagem_responsavel = personagem_id;
-END //
-DELIMITER ; 
 --sp_armas_por_tipo - Lista armas de um tipo específico com filtro de dano mínimo
 
 DELIMITER //
