@@ -63,6 +63,109 @@ BEGIN
 END //
 DELIMITER ;
 
+-- Triggers --
+-- Trigger 1: Impedir inserção de personagem com status inválido
+DELIMITER //
+CREATE TRIGGER trg_validar_status_personagem
+BEFORE INSERT ON personagens
+FOR EACH ROW
+BEGIN
+    IF NEW.status NOT IN ('vivo', 'morto', 'desaparecido', 'expulso') THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Status inválido para personagem.';
+    END IF;
+END //
+DELIMITER ;
+
+-- Trigger 2: Atualizar status de personagem para 'morto' ao remover todas suas armas
+DELIMITER //
+CREATE TRIGGER trg_personagem_sem_armas
+AFTER DELETE ON armas
+FOR EACH ROW
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM armas WHERE id_personagem_dono = OLD.id_personagem_dono) THEN
+        UPDATE personagens
+        SET status = 'morto'
+        WHERE id_personagem = OLD.id_personagem_dono;
+    END IF;
+END //
+DELIMITER ;
+
+-- Trigger 3: Impedir que animal perigoso seja domesticável
+DELIMITER //
+CREATE TRIGGER trg_animal_perigoso_domesticavel
+BEFORE INSERT ON animais
+FOR EACH ROW
+BEGIN
+    IF NEW.perigo IN ('alta', 'média') AND NEW.pode_domesticar = TRUE THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Animais perigosos não podem ser domesticáveis.';
+    END IF;
+END //
+DELIMITER ;
+
+-- Trigger 4: Log de missões criadas
+CREATE TABLE log_missoes (
+    id_log INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(100),
+    data_criacao DATETIME
+);
+
+DELIMITER //
+CREATE TRIGGER trg_log_missao_nova
+AFTER INSERT ON missoes
+FOR EACH ROW
+BEGIN
+    INSERT INTO log_missoes (titulo, data_criacao)
+    VALUES (NEW.titulo, NOW());
+END //
+DELIMITER ;
+
+-- Trigger 5: Atualizar automaticamente o status de personagem para 'desaparecido' se missão atribuída for excluída
+DELIMITER //
+CREATE TRIGGER trg_personagem_missao_removida
+AFTER DELETE ON missoes
+FOR EACH ROW
+BEGIN
+    UPDATE personagens
+    SET status = 'desaparecido'
+    WHERE id_personagem = OLD.id_personagem_responsavel;
+END //
+DELIMITER ;
+
+-- Views -- 
+-- Mostra um resumo das missões com o nome do personagem responsável. --
+CREATE VIEW vw_resumo_missoes AS
+SELECT 
+    m.titulo AS titulo_missao,
+    m.recompensa,
+    m.localizacao,
+    p.nome AS personagem_responsavel
+FROM missoes m
+JOIN personagens p ON m.id_personagem_responsavel = p.id_personagem;
+
+ -- Lista todas as armas junto com os dados do personagem que a possui. --
+CREATE VIEW vw_armas_personagens AS
+SELECT 
+    a.nome_arma,
+    a.tipo,
+    a.dano,
+    a.alcance,
+    p.nome AS dono,
+    p.status
+FROM armas a
+JOIN personagens p ON a.id_personagem_dono = p.id_personagem;
+
+-- Mostra apenas os animais com perigo médio ou alto. --
+CREATE VIEW vw_animais_perigosos AS
+SELECT 
+    nome_comum,
+    tipo,
+    perigo,
+    pode_domesticar
+FROM animais
+WHERE perigo IN ('alta', 'média')
+ORDER BY perigo DESC;
 
 
 -- Tabela: Personagens
@@ -229,3 +332,9 @@ INSERT INTO animais (nome_comum, tipo, perigo, pode_domesticar) VALUES
 ('Cavalo Morgan', 'Domesticado', 'baixa', TRUE),
 ('Urso Negro', 'Selvagem', 'alta', FALSE),
 ('Pato Selvagem', 'Selvagem', 'baixa', FALSE);
+
+-- crud --
+
+remove from animais where perigo like "alta";
+update locais set nome = "Strawberry Hills" where nome like "Strawberry";
+select * from missoes where descricao like "Ataque um esconderijo inimigo.";
