@@ -1,0 +1,137 @@
+-- Operações de CRUD
+-- Update
+UPDATE locais
+SET nome = 'Strawberry Hills'
+WHERE nome = 'Strawberry';
+
+-- Delete
+DELETE FROM animais
+WHERE perigo = 'alta';
+
+-- Select
+SELECT * FROM missoes
+WHERE descricao = 'Assalte um trem de carga';
+
+-- Store Procedures
+-- Lista todas as missões de um personagem específico
+DELIMITER $$ 
+CREATE PROCEDURE sp_missoes_por_personagem(IN personagem_id INT)
+BEGIN
+    SELECT m.titulo, m.descricao, m.recompensa, m.localizacao
+    FROM missoes m
+    WHERE m.id_personagem_responsavel = personagem_id;
+END $$ 
+DELIMITER ;
+
+-- Lista armas de um tipo específico com filtro de dano mínimo
+DELIMITER $$ 
+CREATE PROCEDURE sp_armas_por_tipo(IN tipo_arma VARCHAR(50), IN dano_minimo INT)
+BEGIN
+    SELECT a.nome_arma, a.dano, a.alcance, p.nome AS dono
+    FROM armas a
+    JOIN personagens p ON a.id_personagem_dono = p.id_personagem
+    WHERE a.tipo = tipo_arma AND a.dano >= dano_minimo;
+END $$ 
+DELIMITER ;
+
+-- Funções
+-- Verificar se a missão foi concluída
+DELIMITER $$ 
+CREATE FUNCTION verificar_se_missao_foi_concluida(id_personagem INT, id_missao INT)
+RETURNS BOOLEAN
+BEGIN
+    DECLARE resultado INT;
+
+    SELECT COUNT(*) INTO resultado
+    FROM missoes
+    WHERE id_personagem_responsavel = id_personagem
+    AND id_missao = id_missao
+    AND recompensa IS NOT NULL;  
+
+    IF resultado > 0 THEN
+        RETURN TRUE;
+    ELSE
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Missão não foi concluída';
+    END IF;
+END $$ 
+DELIMITER ;
+
+-- Calcula o número de missões concluídas
+DELIMITER $$ 
+CREATE FUNCTION calcular_missoes_concluidas(id_personagem INT)
+RETURNS INT
+BEGIN
+    DECLARE num_missoes INT;
+
+    SELECT COUNT(*) INTO num_missoes
+    FROM missoes
+    WHERE id_personagem_responsavel = id_personagem
+    AND recompensa IS NOT NULL;
+
+    RETURN num_missoes;
+END $$ 
+DELIMITER ;
+
+-- Triggers
+-- Atualiza o status do personagem após a missão ser concluída
+DELIMITER $$ 
+CREATE TRIGGER trg_atualizar_status_personagem
+AFTER UPDATE ON missoes
+FOR EACH ROW
+BEGIN
+    IF NEW.recompensa IS NOT NULL THEN
+        UPDATE personagens
+        SET status = 'vivo'
+        WHERE id_personagem = NEW.id_personagem_responsavel;
+    END IF;
+END $$ 
+DELIMITER ;
+
+-- Garante que a recompensa de uma missão não seja nula
+DELIMITER $$ 
+CREATE TRIGGER check_recompensa_missao
+BEFORE INSERT ON missoes
+FOR EACH ROW
+BEGIN
+    IF NEW.recompensa IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Recompensa da missão não pode ser nula.';
+    END IF;
+END $$ 
+DELIMITER ;
+
+-- Views
+-- View para listar os personagens com suas missões concluídas
+CREATE VIEW personagens_missoes_concluidas AS
+SELECT 
+    p.nome AS personagem_nome,
+    m.titulo AS missao_titulo,
+    m.recompensa,
+    m.localizacao
+FROM 
+    personagens p
+JOIN 
+    missoes m ON p.id_personagem = m.id_personagem_responsavel
+WHERE 
+    m.recompensa IS NOT NULL;
+
+-- View que mostra as armas junto com os dados dos personagens
+CREATE VIEW armas_personagens AS
+SELECT 
+    a.nome_arma,
+    a.tipo,
+    a.dano,
+    p.nome AS dono,
+    p.status
+FROM armas a
+JOIN personagens p ON a.id_personagem_dono = p.id_personagem;
+
+-- View para mostrar animais domesticáveis
+CREATE VIEW animais_domesticaveis AS
+SELECT 
+    nome_comum,
+    tipo,
+    perigo
+FROM animais
+WHERE pode_domesticar = TRUE;
