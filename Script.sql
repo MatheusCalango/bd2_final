@@ -59,6 +59,15 @@ CREATE TABLE animais (
     pode_domesticar BOOLEAN
 );
 
+-- Missões realizadas
+CREATE TABLE missoes_realizadas (
+    id_personagem INT,
+    id_missao INT,
+    papel_na_missao VARCHAR(100),  
+    PRIMARY KEY (id_personagem, id_missao),
+    FOREIGN KEY (id_personagem) REFERENCES personagens(id_personagem),
+    FOREIGN KEY (id_missao) REFERENCES missoes(id_missao)
+);
 --INSERTS
 INSERT INTO personagens (nome, idade, papel_no_jogo, status) VALUES
 ('Arthur Morgan', 36, 'Protagonista', 'morto'),
@@ -174,6 +183,27 @@ INSERT INTO animais (nome_comum, tipo, perigo, pode_domesticar) VALUES
 ('Cavalo Morgan', 'Domesticado', 'baixa', TRUE),
 ('Urso Negro', 'Selvagem', 'alta', FALSE),
 ('Pato Selvagem', 'Selvagem', 'baixa', FALSE);
+INSERT INTO missoes_realizadas (id_personagem, id_missao, papel_na_missao) VALUES
+(1, 1, 'Líder'),
+(2, 2, 'Líder'),
+(3, 3, 'Aliado'),
+(4, 4, 'Aliada'),
+(5, 5, 'Traidor'),
+(6, 6, 'Mentor'),
+(7, 7, 'Aliado'),
+(8, 8, 'Aliado'),
+(9, 9, 'Aliado'),
+(10, 10, 'Aliada'),
+(11, 11, 'Filho'),
+(12, 12, 'Aliada'),
+(13, 13, 'Agiota'),
+(14, 14, 'Padre'),
+(15, 15, 'Cômico'),
+(16, 16, 'Cozinheiro'),
+(17, 17, 'Aliado'),
+(18, 18, 'Aliado'),
+(19, 19, 'Aliada'),
+(20, 20, 'Líder feminina');
 
 -- crud --
 
