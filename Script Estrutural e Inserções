@@ -42,6 +42,16 @@ CREATE TABLE locais (
     estado VARCHAR(50)
 );
 
+-- Missões realizadas
+CREATE TABLE missoes_realizadas (
+    id_personagem INT,
+    id_missao INT,
+    papel_na_missao VARCHAR(100),  
+    PRIMARY KEY (id_personagem, id_missao),
+    FOREIGN KEY (id_personagem) REFERENCES personagens(id_personagem),
+    FOREIGN KEY (id_missao) REFERENCES missoes(id_missao)
+);
+
 -- Tabela: Animais
 CREATE TABLE animais (
     id_animal INT AUTO_INCREMENT PRIMARY KEY,
@@ -79,3 +89,9 @@ INSERT INTO locais (nome, tipo_local, descricao, estado) VALUES
 INSERT INTO animais (nome_comum, tipo, perigo, pode_domesticar) VALUES
 ('Cervo', 'Selvagem', 'baixa', FALSE),
 ('Urso Pardo', 'Selvagem', 'alta', FALSE);
+
+-- Missões realizadas
+INSERT INTO missoes_realizadas (id_personagem, id_missao, papel_na_missao) VALUES
+(1, 1, 'Líder'),
+(3, 3, 'Aliado'),
+(5, 5, 'Traidor');
